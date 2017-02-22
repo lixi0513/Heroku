@@ -1,0 +1,499 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>MediaSense Search and Play</title>
+</head>
+<script language='javascript' src='js/jquery-1.7.2.min.js'></script>
+<script language='javascript' src='jquery/js/jquery-ui-1.8.12.custom.min.js'></script>
+
+<script language="javascript" src="js/jquery.jqGrid-4.4.1/js/i18n/grid.locale-en.js" ></script>
+<script language='javascript' src='js/jquery.jqGrid-4.4.1/js/jquery.jqGrid.src.js'></script>
+
+<script language='javascript' src='js/jquery-ui-timepicker-addon.js'></script>
+<script language='javascript' src='js/ac_quicktime.js'></script>
+<script language='javascript' src='js/bindWithDelay.js'></script>
+
+
+<link rel="stylesheet" type="text/css" media="screen" href="jqGrid/css/ui.jqgrid.css">
+<link rel="stylesheet" type="text/css" media="screen" href="css/timepicker.css">
+<link rel="stylesheet" type="text/css" media="screen" href="css/cupertino/jquery-ui-1.8.16.custom.css">
+<link rel="stylesheet" type="text/css" media="screen" href="css/view.css">
+
+
+
+<script language='javascript'>
+
+	var $grid;
+
+       function loadDemoGrid(){
+
+            var gridData = $("#media").getGridParam("postData");
+            var pageRequested = $("#media").getGridParam("page");
+
+            var myString = {"MediaSenseSessions":{
+                            "pageToReturn": pageRequested,
+                            "_search": gridData._search,
+                            "nd": gridData.nd,
+                            "currentPage": gridData.page,
+                            "rowsPerPage": gridData.rows,
+                            "sidx": gridData.sidx,
+                            "sord": gridData.sord
+            }};
+
+            var postData =  JSON.stringify(myString);
+
+            var endpoint = "servlet/GetSessions";
+
+            $("#load_media").show();
+
+            $.ajax({
+                type: "POST",
+                url: encodeURI(endpoint),
+                data:postData,
+                contentType: "application/json",
+                datatype:"json",
+                success: function(data) {
+
+                    var result = $.parseJSON(data);
+                    if(result == null) {
+                        result = data;
+                     }
+
+                    var thegrid = $("#media")[0];
+
+                    thegrid.addJSONData(result);
+                    //thegrid.addJSONData(testData);
+                    $("#load_media").hide();
+                },
+                error:function(){
+                    $("#load_media").hide();
+                }
+            });
+        }
+		function searHa( negaSwitch, needleName, inpType ){
+		
+				var realInpt = inpType+":first";
+				var searchFiler = $("td.data").children( realInpt ).val(), f;
+				var cond = $("td.operators").children( "select:first" ).val()
+				
+				if( negaSwitch )
+				{
+					//$grid.trigger("reloadGrid",[{page:1,current:true}]);		
+					$grid.setGridParam({ loadonce: false }).trigger('reloadGrid');
+				}
+				
+				if (searchFiler.length === 0) {
+					//$grid[0].p.search = false;
+					$grid[0].p.search = true;
+					$.extend( $grid[0].p.postData,{filters:""});
+				}
+				
+				//var cond = $("td.operators").children( "select:first" ).val()
+				$grid.setGridParam({ loadonce: true });
+				
+				f = {groupOp:"OR",rules:[]};
+				f.rules.push({field: needleName ,op: cond ,data:searchFiler});
+				//f.rules.push({field:"note",op:"cn",data:searchFiler});
+				$grid[0].p.search = true;
+				$.extend( $grid[0].p.postData,{filters:JSON.stringify(f)});
+				$grid.trigger("reloadGrid",[{page:1,current:true}]);		
+		
+		};
+$(document).ready(function() {
+
+	var deviceid = "";
+	$('#Search').click(function(){
+		deviceid= $('#deviceID').val();
+	});
+	
+	datePick = function(elem)
+	{
+	   jQuery(elem).datetimepicker( {dateFormat: "yy-mm-dd"} );
+	}
+
+	$grid = $('#media');
+
+	
+	jQuery("#media").jqGrid({		
+		mtype: "POST",
+		datatype: "json",
+		//datatype: function(){ loadMSGrid(); }
+	   	url:'servlet/GetSessions',
+		onCellSelect: function (rowid, colid, cellcon, status) {
+			//alert("in cell select");
+			//jQuery("#media").setSelection (rowid, true);
+			
+		},
+	   	onSelectRow: function(id, status) {
+	   		//url='"http://localhost:8080/Mediasense/fake.mp3"'
+			//alert(url);
+			//$('#player').html(" <embed type=\"application/x-vlc-plugin\" name=\"video1\"  loop=\"no\" width=\"400\" height=\"300\" target="+url+" />     ");
+			
+			var ids = jQuery("#media").jqGrid('getGridParam','selrow');
+		      var rowarr = jQuery("#media").getRowData(ids);
+			var sessionid=rowarr['sessionId'];
+			var url=rowarr['rtsp_url'].replace("10.1.1.231","173.37.192.46");
+			//var url=name['rtsp_url'].replace("rtps://", "rtsp://apiuser:cisco@"')
+					// REAL PLAYER
+					$('#player').html(" <embed src=" + url + " console=\"Clip1\" controls=\"all\" height=\"300\" width=\"320\" type=\"audio/x-pn-realaudio-plugin\" autostart=\"true\">	</embed>      ");
+					
+					// QT
+				//var url=name['rtsp_url'].replace("rtsp://apiuser:cisco@","rtps://"')
+					
+					//$('#player').html(QT_GenerateOBJECTText('','320','300','','qtsrc',url));
+
+			
+			
+			
+			
+			//$('#player').html("<object type='audio/3gp' data='"+url+"'> <param name='controller' value='true' />        <param name='autoplay' value='true' /><a href='" + url + "'>Your browser is not able to embed this media here so click this link to play the file in an external application </a></object>");
+			
+			
+			//convertMedia(sessionid);
+		},
+		
+		onSortCol: function(index,icol,sortord) {
+			$grid.groupingRemove();
+			$grid.jqGrid( 'showCol', "sessionId" );
+			
+		},
+
+		onPaging: function(pgButton)
+		{
+			var a = parseInt( $(".ui-pg-input").val() );
+			var b = parseInt( $("#sp_1_pager").html() );
+			if( a > b )
+			{
+				alert("The page you entered does not exist. The highest page number is "+b);
+				$(".ui-pg-input").val(b);
+				return 'stop';
+			}	
+		},
+		
+		loadError: function (xhr,status,error) {
+			alert("An authentication error occured. Please login again.");
+			$(location).attr('href','index.jsp');
+		},
+		
+	   	colNames:['CCID', 'GroupId', 'SessionId','rtsp_url', 'Start Date','Participants','XRefCi', 'Duration', 'Tags', 'Status','Listen'],
+	   	colModel:[
+	   	    {name:'ccid', index:'ccid', hidden:false, width:30,sortable:false, searchoptions:{sopt:['eq']}},
+	   	    {name:'groupId', index:'groupId', hidden:true, sortable:false},
+	   		{name:'sessionId',index:'sessionId', width:70, hidden:false },
+	   		{name:'rtsp_url',index:'rtsp_url', hidden:true, sortable:false },
+	   		//{name:'date',index:'Start Date', width:110,align:"center", searchoptions:{sopt:['lt','gt'] ,dataInit:datePick, attr:{title:'Select Date'}}},
+			// {name:'date',index:'Start Date', width:110,align:"center", searchoptions:{sopt:['lt','gt'] ,dataInit:datePick, sorttype:'text', attr:{title:'Select Date'}}
+			//, formatter:'date' , formatoptions: { srcformat: 'M d H:i:s Y', newformat: 'M d Y H:i' } },
+			//, formatter:'date' , formatoptions: { srcformat: 'M d H:i:s Y', newformat: 'Y-m-d Y H:i' } },
+			{name:'date',index:'Start Date', width:100,align:"center", searchoptions:{sopt:['lt','gt'] ,dataInit:datePick, attr:{title:'Select Date'}}},
+	   		{name:'device',index:'Participants',width:50,align:"center", sortable:true,searchoptions:{sopt:['eq','cn']}},
+	   		{name:'xrefid',index:'xrefid',width:40,align:"center", sortable:true,searchoptions:{sopt:['eq']}},
+	   		{name:'duration',index:'duration', width:40,align:"center", sorttype: "text", searchoptions:{ sopt:['eq','lt','gt'] } },
+	   		{name:'tags',index:'tags', width:30, align:"center", sortable:true, hidden:true},
+	   		{name:'status',index:'Status', width:60,sortable:true, sorttype: "text", align:"center",stype: 'select', searchoptions:{ sopt:['eq','ne']  , value:"ACTIVE:ACTIVE;CLOSED_NORMAL:CLOSED_NORMAL;CLOSED_ERROR:CLOSED_ERROR;DELETED:DELETED"} },
+	   		{name:'url',index:'url', align:"center", search:false, sortable:false, hidden:true}
+	   	],
+	   	rowNum:20,
+	   	rowList: [10,20,50,100],
+	   	//rowTotal: 1000,
+	   	pager:'#pager',
+	   viewrecords: true,
+	   sortable:true,
+	   	autowidth: false,
+		width: 800,
+	   loadonce: true,
+	   	height:500,
+	   	grouping:true, 
+	   	groupingView : { 
+	   		groupField : ['groupId'], 
+	   		groupColumnShow : [false], 
+	   		groupText : ['<b>Parent Session ID: {0} - {1} Call leg(s)</b>'],
+	   		groupDataSorted : false,
+	   		//groupCollapse : true, 
+	   		groupOrder: ['desc']
+		},
+	    caption:"Play",
+		altRows: true
+		
+	   // loadComplete: function () {jQuery("#media").jqGrid('searchGrid'); }
+	});
+	
+	
+	//jQuery("#media").jqGrid('navGrid','#pager',{edit:false,add:false,del:false});
+	$('#play').click(function(){
+		alert("here we go");
+		$('#player').html("Here we go!!");
+	});
+	
+	
+	$.extend($.jgrid.search, {multipleSearch: false, multipleGroup: false, overlay: 0});
+
+	
+	// during creating nevigator bar (optional) one don't need include searching button
+	$grid.jqGrid('navGrid', '#pager', {add: false, edit: false, del: false, search: false});
+
+	// create the searching dialog
+	$grid.jqGrid('searchGrid');
+
+
+	
+	var gridSelector = $.jgrid.jqID($grid[0].id), // 'list'
+	    $searchDialog = $("#searchmodfbox_" + gridSelector),
+	    $gbox = $("#gbox_" + gridSelector);
+
+	// hide 'close' button of the searchring dialog
+	$searchDialog.find("a.ui-jqdialog-titlebar-close").hide();
+
+	// place the searching dialog above the grid
+	$searchDialog.insertBefore($gbox);
+	$searchDialog.css({position: "relative", zIndex: "auto", float: "left", width:795})
+	$gbox.css({clear:"left"});
+	
+	//bind a few live functions to the search area
+	$("#fbox_media_reset").click(function(){
+			$("#search").remove();
+			$("#fbox_media_search").show();
+	});
+	
+	if ( $("td.columns").children("select:first").val() == "duration" )
+		alert( $("td.columns").children("select:first").val() );
+	
+	$(".columns > select").live( 'change', function() {
+		
+		var whiSear = $("td.columns").children("select:first").val();					
+		$("#search").remove();
+		//$("#fbox_media_search").show();
+		
+		if( whiSear  == "duration" )
+		{
+			$(this).parent().siblings().last().append("<span class='tooltip'>Ex. Duration Format: 00:00:09</span>");
+			$(".input-elm").bindWithDelay( 'keyup', function() {		
+				$(".tooltip").show();
+			}, 200);						
+			
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			
+			//sh
+			$("#search").click(function() {
+				searHa(0, whiSear, "input" );
+			});			
+			$(".input-elm").live( 'keypress', function(event) {
+			if( event.which == 13 )
+			{
+				searHa(0, whiSear, "input" );
+			}
+			});
+			//sh						
+		}		
+		else if( whiSear == "Participants" )
+		{
+		
+			var m = $("td.operators").children("select:first").children();
+			m.each( function( index, valut ){
+				if( valut.value == 'eq' ) 
+					$(this).html( "equal" );
+				else
+					$(this).html( "contain" );
+			});
+			
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			//sh
+			$("#search").click(function() {
+				searHa(0, "device", "input" );
+			});			
+			$(".input-elm").live( 'keypress', function(event) {
+			if( event.which == 13 )
+			{
+				searHa(0, "device", "input" );
+			}
+			});
+			//sh
+			
+		}				
+		else if( whiSear == "Status" )
+		{
+		
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			//sh
+			$("#search").click(function() {
+				searHa(0, "status", "select" );
+			});			
+			$(".input-elm").live( 'keypress', function(event) {
+			if( event.which == 13 )
+			{
+				searHa(0, "status", "select" );
+			}
+			});
+			//sh		
+		
+		}
+		else if( whiSear == "Start Date" )
+		{
+		
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			//sh
+			$("#search").click(function() {
+				searHa(0, "date", "input" );
+			});			
+			$(".input-elm").live( 'keypress', function(event) {
+			if( event.which == 13 )
+			{
+				searHa(0, "date", "input" );
+			}
+			});
+			//sh		
+		
+		}		
+		else
+		{
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			//sh
+			$("#search").click(function() {
+				searHa(0, whiSear, "input" );
+			});			
+			$(".input-elm").live( 'keypress', function(event) {
+			if( event.which == 13 )
+			{
+				searHa(0, whiSear, "input" );
+			}
+			});
+			//sh
+		}
+	
+	});
+
+	$(".ui-pg-input").live( 'keypress', function(event) {
+	if( event.which == 13 )
+	{
+	
+			var a = $(".ui-pg-input").val();
+			var b = parseInt( $("#sp_1_pager").html() );
+			if( b > a )
+			{
+				alert("The page you entered does not exist. The highest page number is "+b);
+				$(".ui-pg-input").val(b);
+			}	
+	
+	}
+	});	
+	
+	$( "#fbox_media_reset" ).bind( 'click', function(){
+		$grid.setGridParam({ datatype: 'json' }).trigger('reloadGrid');
+	});
+	
+	$( "#refresh_media" ).unbind('click').bind( 'click', function(){	
+
+		var whiSear = $("td.columns").children("select:first").val();					
+		$("#search").remove();
+		//$("#fbox_media_search").show();
+		
+		if( whiSear  == "duration" )
+		{
+			$(this).parent().siblings().last().append("<span class='tooltip'>Ex. Duration Format: 00:00:09</span>");
+			$(".input-elm").bindWithDelay( 'keyup', function() {		
+				$(".tooltip").show();
+			}, 200);						
+			
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			
+				searHa(1, whiSear, "input" );
+			
+		}		
+		else if( whiSear == "Participants" )
+		{
+		
+			var m = $("td.operators").children("select:first").children();
+			m.each( function( index, valut ){
+				if( valut.value == 'eq' ) 
+					$(this).html( "equal" );
+				else
+					$(this).html( "contain" );
+			});
+			
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+
+				searHa(1, "device", "input" );
+
+			
+		}				
+		else if( whiSear == "Status" )
+		{
+		
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			searHa(1, "status", "select" );
+		
+		}
+		else if( whiSear == "Start Date" )
+		{
+		
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+			
+				searHa(1, "date", "input" );
+
+		
+		}		
+		else
+		{
+			$("#fbox_media_search").hide();
+			$("#fbox_media_search").before("<a id='search' href='#' class='fm-button ui-state-default ui-corner-all fm-button-icon-right ui-reset'>Find<span class='ui-icon ui-icon-search'></span></a>");
+			$(".tooltip").remove();
+			
+
+				searHa(1, whiSear, "input" );
+		
+		}
+		//admin000
+	});
+});
+
+
+</script>
+<body>
+
+
+<!-- NOT USING THIS. USING BUILT IN JQGRID SEARCH
+ Search: <input type='text'  id="deviceID"  name="deviceID"></input>
+<input type="button" value='Search' id='Search'></input>
+
+<br/><br/><br/><br/>
+-->
+<div style="text-align: center;float: left;width: 100%;">
+
+
+<table id="media">
+</table>
+<div id="pager"></div>
+<br/><br/><br/><br/>
+<div id="details"> </div>
+<div id=play></div>
+<div id="player" style="position:absolute;width:200px;height:30px;top:40px;left:850px"></div>
+<div id="search"></div>
+</div>
+ 
+   
+
+</body>
+</html>
